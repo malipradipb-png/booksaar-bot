@@ -83,6 +83,9 @@ def run():
 
     if youtube.enabled():
         try:
+            soon = next_slot(datetime.datetime.now(IST))  # making the video can take long; never schedule in the past
+            if soon > when:
+                when = soon
             vid = youtube.upload(mp4, p["title"], desc, p["tags"], when, thumbs[0])
             deliver.say(f"📺 YouTube par upload ho gaya aur {when:%d %b, %I:%M %p} par apne aap public hoga:\nhttps://youtu.be/{vid}")
         except Exception as e:
