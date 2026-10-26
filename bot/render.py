@@ -13,6 +13,7 @@ W, H, FPS = 1920, 1080, 24
 
 def fill(tpl, vals):
     s = open(os.path.join(HERE, "templates", tpl), encoding="utf-8").read()
+    s = s.replace("{{BOOK}}", book3d())
     for k, v in vals.items():
         s = s.replace("{{" + k + "}}", str(v))
     return s
@@ -41,7 +42,49 @@ def book_vals(p):
             "cover_tag": html.escape(p.get("cover_tag", "")), "cover_sub": html.escape(p.get("cover_sub", "")),
             "author": html.escape(p["author"]), "book_html": "<br>".join(html.escape(x) for x in words),
             "title_px": title_px, "title_px_t": int(title_px * 0.8), "title_px_s": int(title_px * 0.5),
-            "thumb_bg": t.get("thumb_bg") or f"linear-gradient(115deg,{t['bg1']} 30%,{t['bg2']} 130%)"}
+            "thumb_bg": t.get("thumb_bg") or f"linear-gradient(115deg,{t['bg1']} 30%,{t['bg2']} 130%)",
+            "BOOK_CSS": BOOK_CSS, "FIT_JS": FIT_JS}
+
+
+# A real-looking 3D hardcover: front cover + visible page block + soft floor shadow.
+# Size each book with --w/--h/--d on the .b3 element; the title auto-shrinks so the whole cover always fits.
+BOOK_CSS = """
+.b3{position:absolute;width:var(--w);height:var(--h);perspective:2400px;z-index:2}
+.b3:after{content:"";position:absolute;left:4%;right:-6%;bottom:-5%;height:9%;border-radius:50%;
+ background:radial-gradient(closest-side,rgba(0,0,0,.6),transparent);filter:blur(6px);z-index:-1}
+.b3in{position:relative;width:100%;height:100%;transform-style:preserve-3d;transform:rotateY(var(--ry,-14deg))}
+.b3 .face{position:absolute;top:0;left:0;backface-visibility:hidden;box-sizing:border-box}
+.b3 .front{width:100%;height:100%;transform:translateZ(calc(var(--d)/2));overflow:hidden;
+ background:linear-gradient(160deg,var(--c1),var(--c2));border-radius:3px 10px 10px 3px;color:var(--ink);
+ display:flex;flex-direction:column;justify-content:space-between;padding:calc(var(--w)*.11) calc(var(--w)*.1) calc(var(--w)*.1) calc(var(--w)*.14)}
+.b3 .front:before{content:"";position:absolute;left:0;top:0;bottom:0;width:calc(var(--w)*.075);
+ background:linear-gradient(90deg,rgba(0,0,0,.28),rgba(255,255,255,.25) 55%,rgba(0,0,0,.12) 75%,transparent)}
+.b3 .front:after{content:"";position:absolute;inset:0;pointer-events:none;
+ background:linear-gradient(115deg,rgba(255,255,255,.35) 0%,rgba(255,255,255,0) 38%,rgba(0,0,0,0) 70%,rgba(0,0,0,.18) 100%)}
+.b3 .pages{width:var(--d);height:calc(100% - 10px);top:5px;left:calc(var(--w) - var(--d)/2);transform:rotateY(90deg);
+ background:linear-gradient(90deg,rgba(0,0,0,.22),rgba(0,0,0,0) 30%,rgba(0,0,0,0) 70%,rgba(0,0,0,.15)),
+ repeating-linear-gradient(90deg,#fbf7ee 0 2px,#ddd4c2 2px 3px)}
+.b3 .back{width:100%;height:100%;transform:rotateY(180deg) translateZ(calc(var(--d)/2));background:var(--c2);border-radius:10px 3px 3px 10px}
+.b3 .top{width:100%;height:var(--d);top:calc(var(--d)/-2);transform:rotateX(90deg);background:#efe8da}
+.b3 .tag{font-size:calc(var(--w)*.052);opacity:.75;font-weight:700;position:relative}
+.b3 .t{font-family:Serif,serif;font-size:calc(var(--w)*.19);line-height:1.02;position:relative;overflow-wrap:normal}
+.b3 .s{font-size:calc(var(--w)*.06);line-height:1.35;opacity:.85;position:relative}
+.b3 .a{font-size:calc(var(--w)*.052);letter-spacing:.16em;text-transform:uppercase;font-weight:700;position:relative}
+"""
+
+FIT_JS = """<script>
+document.fonts.ready.then(function(){document.querySelectorAll('.b3 .front').forEach(function(f){
+ var t=f.querySelector('.t'),s=parseFloat(getComputedStyle(t).fontSize);
+ while((f.scrollHeight>f.clientHeight+1||t.scrollWidth>t.clientWidth+1)&&s>14){s-=1;t.style.fontSize=s+'px';}
+});});
+</script>"""
+
+
+def book3d(cls=""):
+    return ('<div class="b3 ' + cls + '"><div class="b3in">'
+            '<div class="face back"></div><div class="face top"></div><div class="face pages"></div>'
+            '<div class="face front"><div class="tag">{{cover_tag}}</div><div class="t">{{book_html}}</div>'
+            '<div class="s">{{cover_sub}}</div><div class="a">{{author}}</div></div></div></div>')
 
 
 def background(p, work):
