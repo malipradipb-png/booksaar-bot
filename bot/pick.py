@@ -114,3 +114,44 @@ def fix(p):
             raise RuntimeError("AI plan missing " + k)
     p.setdefault("book_hi", p["book"]); p.setdefault("angle", ""); p.setdefault("cover_tag", ""); p.setdefault("cover_sub", "")
     return p
+
+
+def yt_suggest(q):
+    try:
+        r = requests.get("https://suggestqueries.google.com/complete/search",
+                         params={"client": "firefox", "ds": "yt", "hl": "hi", "q": q}, headers=UA, timeout=15)
+        return [s for s in r.json()[1] if isinstance(s, str)]
+    except Exception as e:
+        print("suggest fail", q, e)
+        return []
+
+
+def seo(p):
+    """Use what people actually type in YouTube search to sharpen the title and tags."""
+    seen = []
+    for q in (f"{p['book']} summary in hindi", f"{p['book']} hindi", f"{p['book']} audiobook", p["book"], p.get("book_hi", ""),
+              f"{p['author']} books hindi"):
+        for s in yt_suggest(q) if q else []:
+            if s not in seen:
+                seen.append(s)
+    if not seen:
+        return p
+    out = chat("You are a YouTube SEO expert for the Hindi book-summary channel 'Book Saar Hindi'. Reply with JSON only.",
+               f"""Book: {p['book']} by {p['author']}. Current title: {p['title']}
+Current tags: {json.dumps(p['tags'], ensure_ascii=False)}
+Real YouTube search suggestions people type right now:
+{json.dumps(seen[:40], ensure_ascii=False)}
+
+Improve the title and tags using the most relevant real search phrases. Keep the strong Hindi hook at the start of the title,
+keep it under 95 characters, and keep the book name and 'Book Summary in Hindi' in it. Do not use clickbait that the video
+does not deliver. Return JSON: {{"title": "...", "tags": ["15-25 tags, most searched first"], "hashtags": ["#BookSummary", "3 more"]}}""",
+               as_json=True, max_tokens=1200, temperature=0.4)
+    t = str(out.get("title") or "").strip()
+    if 20 <= len(t) <= 100:
+        p["title"] = t
+    if isinstance(out.get("tags"), list) and out["tags"]:
+        p["tags"] = [str(x) for x in out["tags"]][:25]
+    if isinstance(out.get("hashtags"), list) and out["hashtags"]:
+        p["hashtags"] = [str(x) for x in out["hashtags"]][:5]
+    p["search_terms"] = seen[:15]
+    return p
