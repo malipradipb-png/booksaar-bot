@@ -1,0 +1,4 @@
+edge-tts>=7.0.0
+requests>=2.31
+playwright>=1.44
+pillow>=10.0
