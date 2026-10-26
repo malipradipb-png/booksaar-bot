@@ -76,4 +76,41 @@ Return JSON with exactly these keys:
  "person_query": "English Pexels search for a real person photo with a strong emotion that fits the hook, e.g. 'shocked indian man'",
  "why": "one Hindi line: why this book will do well today"
 }}"""
-    return chat(SYSTEM, user, as_json=True, max_tokens=2500, temperature=0.9)
+    return fix(chat(SYSTEM, user, as_json=True, max_tokens=2500, temperature=0.9))
+
+
+DEFAULT_THEME = {"bg1": "#121A24", "bg2": "#2B4A63", "cover1": "#F7F2E8", "cover2": "#E9DFCC", "ink": "#1E2B38",
+                 "hi": "#3CE36A", "dust": "255,214,140", "thumb_bg": ""}
+
+
+def _hex(v, d):
+    v = str(v or "").strip()
+    if re.fullmatch(r"#?[0-9a-fA-F]{6}", v):
+        return "#" + v.lstrip("#")
+    return d
+
+
+def fix(p):
+    """Make the AI's plan safe to use whatever shape it came back in."""
+    t = p.get("theme") if isinstance(p.get("theme"), dict) else {}
+    th = {}
+    for k in ("bg1", "bg2", "cover1", "cover2", "ink", "hi"):
+        th[k] = _hex(t.get(k), DEFAULT_THEME[k])
+    dust = t.get("dust", DEFAULT_THEME["dust"])
+    nums = re.findall(r"\d+", ",".join(map(str, dust)) if isinstance(dust, (list, tuple)) else str(dust))
+    th["dust"] = ",".join(str(min(255, int(x))) for x in nums[:3]) if len(nums) >= 3 else DEFAULT_THEME["dust"]
+    tb = str(t.get("thumb_bg") or "")
+    th["thumb_bg"] = tb if tb.startswith(("linear-gradient", "radial-gradient", "#")) and "<" not in tb and ";" not in tb else ""
+    p["theme"] = th
+    for k, dflt in (("thumb_a", ["रोज़ सुनें", "1 किताब", "बदल देगी"]), ("thumb_b", ["ये किताब", "ज़िंदगी", "बदल देगी"])):
+        v = p.get(k)
+        v = [str(x) for x in v] if isinstance(v, list) else [str(v or "")]
+        p[k] = v[:3] if len(v) >= 3 else (v + ["", "", ""])[:3] if v and v[0] else dflt
+    for k in ("tags", "hashtags"):
+        v = p.get(k)
+        p[k] = [str(x) for x in v] if isinstance(v, list) else [x.strip() for x in str(v or "").split(",") if x.strip()]
+    for k in ("book", "author", "title"):
+        if not p.get(k):
+            raise RuntimeError("AI plan missing " + k)
+    p.setdefault("book_hi", p["book"]); p.setdefault("angle", ""); p.setdefault("cover_tag", ""); p.setdefault("cover_sub", "")
+    return p
