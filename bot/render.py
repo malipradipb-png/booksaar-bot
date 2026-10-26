@@ -144,8 +144,12 @@ def lines(words, max_words=4, max_chars=26):
     return out
 
 
-def captions(words, p, work, total):
+def captions(words, p, work, total, bottom=False):
     hi = ass_color(p["theme"].get("hi", "#3CE36A"))
+    if bottom:  # full-screen pictures: captions bottom-centre with a thick outline so they read on any photo
+        style = f"Style: Cap,{CAP_FONT},96,&H00FFFFFF,&H00FFFFFF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,6,3,2,120,120,70,1"
+    else:
+        style = f"Style: Cap,{CAP_FONT},124,&H00FFFFFF,&H00FFFFFF,&H64000000,&H96000000,0,0,0,0,100,100,0,0,1,2,5,5,720,60,0,1"
     head = f"""[Script Info]
 ScriptType: v4.00+
 PlayResX: {W}
@@ -155,7 +159,7 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Cap,{CAP_FONT},124,&H00FFFFFF,&H00FFFFFF,&H64000000,&H96000000,0,0,0,0,100,100,0,0,1,2,5,5,720,60,0,1
+{style}
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -179,14 +183,31 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
 
 def video(p, audio, words, work, out):
+    """Scene-by-scene video (new pictures every ~12 s). If pictures cannot be found, falls back to the
+    single-screen book video. Returns (mp4, first scene picture or None)."""
     from tts import dur
     total = dur(audio)
     bg = background(p, work)
+    hi = p["theme"].get("hi", "#3CE36A").lstrip("#")
+    fdir = FONTS.replace(":", "\\:")
+    if os.environ.get("VIDEO_STYLE", "scenes") == "scenes":
+        try:
+            import scenes
+            sv, first = scenes.build(p, words, total, bg, work)
+            ass = captions(words, p, work, total, bottom=True)
+            esc = ass.replace("\\", "/").replace(":", "\\:")
+            fc = (f"[0:v]ass='{esc}':fontsdir='{fdir}',"
+                  f"drawbox=x=0:y=ih-8:w='iw*t/{total:.2f}':h=8:color=0x{hi}@0.9:t=fill[v]")
+            subprocess.run(["ffmpeg", "-y", "-v", "error", "-stats", "-i", sv, "-i", audio, "-filter_complex", fc,
+                            "-map", "[v]", "-map", "1:a", "-t", f"{total:.2f}", "-r", str(FPS), "-c:v", "libx264",
+                            "-preset", "veryfast", "-crf", "26", "-maxrate", "4000k", "-bufsize", "8000k",
+                            "-pix_fmt", "yuv420p", "-c:a", "copy", "-movflags", "+faststart", out], check=True)
+            return out, first
+        except Exception as e:
+            print("scene video failed, using the book-screen video instead:", e)
     pt = particles(p, work)
     ass = captions(words, p, work, total)
-    hi = p["theme"].get("hi", "#3CE36A").lstrip("#")
     esc = ass.replace("\\", "/").replace(":", "\\:")
-    fdir = FONTS.replace(":", "\\:")
     fc = (f"[0:v]format=gbrp[b];[1:v]format=gbrp[q];[b][q]blend=all_mode=screen,format=yuv420p,"
           f"ass='{esc}':fontsdir='{fdir}',"
           f"drawbox=x=0:y=ih-8:w='iw*t/{total:.2f}':h=8:color=0x{hi}@0.9:t=fill[v]")
@@ -195,16 +216,20 @@ def video(p, audio, words, work, out):
                     "-t", f"{total:.2f}", "-r", str(FPS), "-c:v", "libx264", "-preset", "veryfast", "-crf", "27",
                     "-maxrate", "2500k", "-bufsize", "5000k", "-pix_fmt", "yuv420p", "-c:a", "copy",
                     "-movflags", "+faststart", out], check=True)
-    return out
+    return out, None
 
 
-def thumbnails(p, work, photo_path=None):
+def thumbnails(p, work, photo_path=None, scene_path=None):
+    """A: book left + scene picture behind the words (Arc style). B: words + book + person photo."""
     v = book_vals(p)
     outs = []
     a = p["thumb_a"]
     words_a = f"<span>{html.escape(a[0])}</span><span class='box'>{html.escape(a[1])}</span><span>{html.escape(a[2])}</span>"
     oa = os.path.join(work, "thumb_A.png")
-    shot(fill("thumb.html", {**v, "variant": "A", "words": words_a, "photo_div": "", "photo": ""}), oa, 1280, 720, work)
+    bgp = scene_path or photo_path
+    shot(fill("thumb.html", {**v, "variant": "A has-bg" if bgp else "A", "words": words_a,
+                             "photo_div": '<div class="scene"></div>' if bgp else "",
+                             "photo": "file://" + os.path.abspath(bgp) if bgp else ""}), oa, 1280, 720, work)
     outs.append(oa)
     b = p["thumb_b"]
     words_b = f"<span>{html.escape(b[0])}</span><span class='brush'>{html.escape(b[1])}</span><span>{html.escape(b[2])}</span>"
