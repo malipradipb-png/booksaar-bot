@@ -3,28 +3,28 @@
 @font-face{font-family:Dev;src:url("{{FONT_DEV}}")}
 @font-face{font-family:Serif;src:url("{{FONT_SERIF}}")}
 html,body{margin:0;width:1280px;height:720px;overflow:hidden}
-body{background:{{thumb_bg}};position:relative;font-family:Dev,sans-serif}
-.photo{position:absolute;right:0;top:0;bottom:0;width:560px;background:url("{{photo}}") center/cover;
+body{background:{{thumb_bg}};position:relative;font-family:Dev,sans-serif;--c1:{{cover1}};--c2:{{cover2}};--ink:{{ink}}}
+{{BOOK_CSS}}
+.photo{position:absolute;right:0;top:0;bottom:0;width:520px;background:url("{{photo}}") center/cover;
  -webkit-mask-image:linear-gradient(90deg,transparent,#000 35%);mask-image:linear-gradient(90deg,transparent,#000 35%)}
-.book{position:absolute;left:51px;top:72px;width:384px;height:576px;transform:perspective(1900px) rotateY(16deg);transform-origin:left center;
- background:linear-gradient(160deg,{{cover1}},{{cover2}});border-radius:7px 14px 14px 7px;box-shadow:30px 30px 60px rgba(0,0,0,.6);
- display:flex;flex-direction:column;justify-content:space-between;padding:44px 36px;box-sizing:border-box;color:{{ink}}}
-.book:before{content:"";position:absolute;left:0;top:0;bottom:0;width:22px;background:linear-gradient(90deg,rgba(0,0,0,.35),transparent);border-radius:7px 0 0 7px}
-.tag{font-size:19px;opacity:.75;font-weight:700}
-.t{font-family:Serif,serif;font-size:{{title_px_t}}px;line-height:1.0}
-.s{font-size:22px;line-height:1.35;opacity:.85}
-.a{font-size:22px;letter-spacing:.18em;text-transform:uppercase;font-weight:700}
 .words{position:absolute;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;
- font-family:Thumb,Dev,sans-serif;font-weight:800;color:#fff;text-shadow:0 6px 16px rgba(0,0,0,.6);line-height:1.08}
-.A .words{left:480px;right:30px;font-size:104px}
-.B .words{left:30px;right:470px;font-size:100px}
+ font-family:Thumb,Dev,sans-serif;font-weight:800;color:#fff;text-shadow:0 6px 16px rgba(0,0,0,.6);line-height:1.08;z-index:3}
 .box{background:#FFE14A;color:#111;padding:0 26px;border-radius:14px;text-shadow:none;font-size:1.3em}
 .brush{background:#E3262E;color:#fff;padding:4px 30px;transform:rotate(-2.5deg);clip-path:polygon(2% 8%,98% 0,100% 88%,4% 100%)}
-.B .book{left:auto;right:40px;top:auto;bottom:-40px;width:260px;height:390px;padding:30px 24px;transform:rotate(6deg)}
-.B .book .t{font-size:{{title_px_s}}px}.B .book .s,.B .book .tag{display:none}
-.B.has-photo .book{right:auto;left:auto;display:none}
+/* A: big book on the left, words on the right */
+.A .b3{--w:420px;--h:630px;--d:58px;left:44px;top:36px}
+.A .words{left:540px;right:24px;font-size:100px}
+/* B without photo: words left, big book right */
+.B .b3{--w:400px;--h:600px;--d:56px;--ry:14deg;right:70px;top:50px}
+.B .b3 .pages{left:calc(var(--d)/-2);transform:rotateY(-90deg)}
+.B .words{left:24px;right:500px;font-size:96px}
+/* B with photo: words left, book in the middle, person on the right */
+.B.has-photo .b3{--w:330px;--h:495px;--d:48px;--ry:-14deg;right:auto;left:500px;top:150px}
+.B.has-photo .b3 .pages{left:calc(var(--w) - var(--d)/2);transform:rotateY(90deg)}
+.B.has-photo .words{left:16px;right:auto;width:480px;font-size:84px}
 </style></head><body class="{{variant}}">
 {{photo_div}}
-<div class="book"><div class="tag">{{cover_tag}}</div><div class="t">{{book_html}}</div><div class="s">{{cover_sub}}</div><div class="a">{{author}}</div></div>
+{{BOOK}}
 <div class="words">{{words}}</div>
+{{FIT_JS}}
 </body></html>
