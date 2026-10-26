@@ -50,6 +50,7 @@ jobs:
           PEXELS_KEY: ${{ secrets.PEXELS_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           FORCE_BOOK: ${{ github.event.inputs.book }}
+          YT_UPLOAD: ${{ vars.YT_UPLOAD }}
         run: python bot/main.py
 
       - name: Remember the book
