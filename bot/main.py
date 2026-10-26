@@ -2,7 +2,7 @@
 import datetime, json, os, re, sys, traceback
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import deliver, pick, render, script, tts
+import deliver, pick, render, script, tts, youtube
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 DONE = os.path.join(ROOT, "data", "done.json")
@@ -76,6 +76,13 @@ def run():
     deliver.say(f"TITLE:\n{p['title']}")
     deliver.say(f"DESCRIPTION:\n{desc}")
     deliver.say(f"TAGS:\n{', '.join(p['tags'])}")
+
+    if youtube.enabled():
+        try:
+            vid = youtube.upload(mp4, p["title"], desc, p["tags"], when, thumbs[0])
+            deliver.say(f"📺 YouTube par upload ho gaya aur {when:%d %b, %I:%M %p} par apne aap public hoga:\nhttps://youtu.be/{vid}")
+        except Exception as e:
+            deliver.say(f"⚠️ YouTube upload nahi hua ({str(e)[:300]}). Upar ke link se khud upload kar dein.")
 
     done.append(p["book"])
     json.dump(done, open(DONE, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
