@@ -2,18 +2,13 @@
 @font-face{font-family:Dev;src:url("{{FONT_DEV}}")}
 @font-face{font-family:Serif;src:url("{{FONT_SERIF}}")}
 html,body{margin:0;width:1920px;height:1080px;overflow:hidden}
-body{background:radial-gradient(120% 90% at 70% 45%,{{bg2}},{{bg1}} 70%);font-family:Dev,sans-serif}
-.book{position:absolute;left:115px;top:173px;width:461px;height:691px;transform:perspective(2300px) rotateY(18deg);transform-origin:left center;
- background:linear-gradient(160deg,{{cover1}},{{cover2}});border-radius:8px 17px 17px 8px;box-shadow:42px 38px 77px rgba(0,0,0,.55);
- display:flex;flex-direction:column;justify-content:space-between;padding:58px 46px;box-sizing:border-box;color:{{ink}}}
-.book:before{content:"";position:absolute;left:0;top:0;bottom:0;width:27px;background:linear-gradient(90deg,rgba(0,0,0,.35),rgba(255,255,255,.08) 60%,transparent);border-radius:8px 0 0 8px}
-.tag{font-size:24px;opacity:.75;font-weight:700}
-.t{font-family:Serif,serif;font-size:{{title_px}}px;line-height:1.0;word-wrap:break-word}
-.s{font-size:28px;line-height:1.35;opacity:.85}
-.a{font-size:26px;letter-spacing:.2em;text-transform:uppercase;font-weight:700}
-.mark{width:100px;height:100px;border-radius:50%;border:6px solid currentColor;opacity:.75}
+body{background:radial-gradient(120% 90% at 70% 45%,{{bg2}},{{bg1}} 70%);font-family:Dev,sans-serif;--c1:{{cover1}};--c2:{{cover2}};--ink:{{ink}}}
+{{BOOK_CSS}}
+/* whole book on screen, big, left side; captions use the right side (MarginL 720) */
+.b3{--w:540px;--h:810px;--d:74px;left:90px;top:110px}
 .brand{position:absolute;right:42px;top:38px;font-size:30px;color:rgba(255,255,255,.75);font-weight:700}
 </style></head><body>
-<div class="book"><div class="tag">{{cover_tag}}</div><div class="t">{{book_html}}</div><div class="s">{{cover_sub}}</div><div class="mark"></div><div class="a">{{author}}</div></div>
+{{BOOK}}
 <div class="brand">बुक सार हिंदी</div>
+{{FIT_JS}}
 </body></html>
