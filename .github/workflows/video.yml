@@ -1,0 +1,62 @@
+name: Daily book video
+
+on:
+  schedule:
+    - cron: "30 20 * * *"   # 02:00 IST  -> ready for the 05:15 post
+    - cron: "0 9 * * *"     # 14:30 IST  -> ready for the 18:15 post
+  workflow_dispatch:
+    inputs:
+      book:
+        description: "Book name (leave empty and the bot picks a trending book)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: video
+  cancel-in-progress: false
+
+jobs:
+  make:
+    runs-on: ubuntu-latest
+    timeout-minutes: 170
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg fonts-noto-core > /dev/null
+          pip install -q -r requirements.txt
+          python -m playwright install --with-deps chromium > /dev/null
+          mkdir -p fonts
+          base=https://raw.githubusercontent.com/google/fonts/main/ofl
+          curl -sfL -o fonts/Mukta-ExtraBold.ttf $base/mukta/Mukta-ExtraBold.ttf
+          curl -sfL -o fonts/Baloo2-ExtraBold.ttf "$base/baloo2/Baloo2%5Bwght%5D.ttf"
+          curl -sfL -o fonts/DMSerifDisplay-Regular.ttf $base/dmserifdisplay/DMSerifDisplay-Regular.ttf
+          ls -la fonts
+
+      - name: Make the video
+        env:
+          GROQ_KEY: ${{ secrets.GROQ_KEY }}
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+          PEXELS_KEY: ${{ secrets.PEXELS_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FORCE_BOOK: ${{ github.event.inputs.book }}
+        run: python bot/main.py
+
+      - name: Remember the book
+        if: success()
+        run: |
+          git config user.name "booksaar-bot"
+          git config user.email "booksaar-bot@users.noreply.github.com"
+          git add data/done.json
+          git commit -m "Made: $(python -c 'import json;print(json.load(open("data/done.json"))[-1])')" || exit 0
+          git pull --rebase -q && git push -q
