@@ -62,10 +62,10 @@ def run():
     audio, words, chaps = tts.narrate(parts, os.path.join(WORK, "audio"))
     name = f"{now:%Y-%m-%d}-{slug(p['book'])}"
     mp4 = os.path.join(WORK, name + ".mp4")
-    render.video(p, audio, words, WORK, mp4)
+    _, scene_pic = render.video(p, audio, words, WORK, mp4)
 
     photo = deliver.pexels(p.get("person_query", "thinking indian man"), os.path.join(WORK, "person.jpg"))
-    thumbs = render.thumbnails(p, WORK, photo)
+    thumbs = render.thumbnails(p, WORK, photo, scene_pic)
 
     desc = description(p, chaps)
     meta = os.path.join(WORK, name + ".txt")
