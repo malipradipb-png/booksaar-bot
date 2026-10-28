@@ -2,8 +2,8 @@ name: Daily book video
 
 on:
   schedule:
-    - cron: "30 20 * * *"   # 02:00 IST  -> ready for the 05:15 post
-    - cron: "0 9 * * *"     # 14:30 IST  -> ready for the 18:15 post
+    - cron: "30 20 * * *"   # 02:00 IST  -> ready for the morning post (7 AM weekdays, 10/11 AM weekends)
+    - cron: "0 6 * * *"     # 11:30 IST  -> ready for the evening post (5 PM weekdays, 6 PM Sat, 4 PM Sun)
   workflow_dispatch:
     inputs:
       book:
