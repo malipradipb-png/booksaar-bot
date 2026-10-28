@@ -8,7 +8,12 @@ ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 DONE = os.path.join(ROOT, "data", "done.json")
 WORK = os.path.join(ROOT, "work")
 IST = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
-SLOTS = os.environ.get("POST_TIMES", "05:15,18:15").split(",")
+# Best upload times for Indian viewers (IST): weekdays morning commute + 2-3 h before the ~8 PM peak;
+# weekends later in the morning. POST_TIMES (e.g. "07:00,17:00") overrides every day.
+WEEK_SLOTS = {0: ["07:00", "17:00"], 1: ["07:00", "17:00"], 2: ["07:00", "17:00"], 3: ["07:00", "17:00"],
+              4: ["07:00", "17:00"], 5: ["10:00", "18:00"], 6: ["11:00", "16:00"]}
+if os.environ.get("POST_TIMES"):
+    WEEK_SLOTS = {d: os.environ["POST_TIMES"].split(",") for d in range(7)}
 
 
 def mmss(t):
@@ -21,13 +26,15 @@ def slug(s):
 
 
 def next_slot(now):
-    for s in SLOTS:
-        hh, mm = map(int, s.split(":"))
-        t = now.replace(hour=hh, minute=mm, second=0, microsecond=0)
-        if t > now + datetime.timedelta(minutes=30):
-            return t
-    hh, mm = map(int, SLOTS[0].split(":"))
-    return (now + datetime.timedelta(days=1)).replace(hour=hh, minute=mm, second=0, microsecond=0)
+    """First posting slot at least 30 minutes from now (today, tomorrow or the day after)."""
+    for add in range(3):
+        day = now + datetime.timedelta(days=add)
+        for s in WEEK_SLOTS[day.weekday()]:
+            hh, mm = map(int, s.split(":"))
+            t = day.replace(hour=hh, minute=mm, second=0, microsecond=0)
+            if t > now + datetime.timedelta(minutes=30):
+                return t
+    return now + datetime.timedelta(hours=2)
 
 
 def description(p, chapters):
