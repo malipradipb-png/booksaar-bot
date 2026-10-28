@@ -30,13 +30,107 @@ def theme_photo(p, work):
         q = str(d.get("q") or "").strip()
     except Exception as e:
         print("theme query failed", e)
+        words = re.findall(r"[A-Za-z]{4,}", p["book"])
+        q = " ".join(words[:2]) if words else ""
     import scenes
     pics = scenes.Pics(work)
     out = os.path.join(work, "theme.jpg")
     for query in [q, p.get("person_query", ""), THEME_FALLBACK]:
-        if query and pics.pexels(query, out):
+        if query and pics.pexels(query, out):           # only if a PEXELS_KEY secret exists
             return out
+    for query in [q, " ".join(q.split()[-2:]), "sunrise mountains"]:
+        if query and openverse(query, out):             # free, no key (copyright-free CC0 photos)
+            return out
+    return painted(p, out)                               # never fails: our own drawn scene
+
+
+def openverse(q, out):
+    """Copyright-free (CC0 / public domain) landscape photo from Openverse. No key needed."""
+    import requests
+    try:
+        r = requests.get("https://api.openverse.org/v1/images/", timeout=25,
+                         params={"q": q, "license": "cc0,pdm", "category": "photograph", "aspect_ratio": "wide",
+                                 "page_size": 10, "mature": "false"})
+        for x in (r.json().get("results") or []):
+            if (x.get("width") or 0) < 1200:
+                continue
+            img = requests.get(x["url"], timeout=40)
+            if img.ok and len(img.content) > 50000:
+                open(out, "wb").write(img.content)
+                from PIL import Image
+                Image.open(out).convert("RGB").save(out, "JPEG", quality=92)   # check it really is an image
+                return out
+    except Exception as e:
+        print("openverse fail", q, e)
     return None
+
+
+PALETTES = [  # sky top, sky middle, horizon glow, sun, far hills, near hills
+    ("#0b1d3a", "#3d4f8a", "#f6a04d", "#ffe9b0", "#2a3150", "#0c0f1c"),
+    ("#120c2e", "#5a2d6e", "#ff8a5c", "#ffd9a0", "#2e1f45", "#0d0816"),
+    ("#06232e", "#1f5e6e", "#f2c46b", "#fff1c2", "#163c47", "#061218"),
+    ("#1a0f0a", "#6b2f1a", "#ffb347", "#fff0b8", "#3b1d12", "#120805"),
+    ("#0a1626", "#24466b", "#e8a87c", "#ffe3c4", "#1d2f45", "#070c14"),
+]
+
+
+def painted(p, out, w=1920, h=1280):
+    """Draw a cinematic scene: glowing sunrise, layered hills, birds and a person with raised arms."""
+    import hashlib, math, random
+    from PIL import Image, ImageDraw, ImageFilter
+    seed = int(hashlib.md5(p["book"].encode()).hexdigest()[:8], 16)
+    rnd = random.Random(seed)
+    top, mid, glow, sun, far, near = [tuple(int(c[i:i + 2], 16) for i in (1, 3, 5)) for c in PALETTES[seed % len(PALETTES)]]
+    hz = int(h * 0.62)
+    im = Image.new("RGB", (w, h))
+    d = ImageDraw.Draw(im)
+    mix = lambda a, b, t: tuple(int(a[i] + (b[i] - a[i]) * t) for i in range(3))
+    for y in range(h):
+        t = y / hz
+        c = mix(top, mid, min(t * 1.4, 1)) if t < 0.7 else mix(mid, glow, min((t - 0.7) / 0.3, 1))
+        d.line([(0, y), (w, y)], fill=c)
+    px = int(w * rnd.choice([0.40, 0.58]))            # person stays inside the cover crop
+    sx, sy = int(w * (0.60 if px < w / 2 else 0.42)), int(hz - h * 0.06)
+    halo = Image.new("L", (w, h), 0)
+    ImageDraw.Draw(halo).ellipse([sx - 420, sy - 420, sx + 420, sy + 420], fill=170)
+    im.paste(Image.new("RGB", (w, h), glow), (0, 0), halo.filter(ImageFilter.GaussianBlur(160)))
+    d = ImageDraw.Draw(im)
+    d.ellipse([sx - 95, sy - 95, sx + 95, sy + 95], fill=sun)
+    for k in range(18):                                     # soft light rays
+        a = k / 18 * math.pi * 2 + rnd.random() * 0.1
+        ray = Image.new("L", (w, h), 0)
+        ImageDraw.Draw(ray).polygon([(sx, sy), (sx + math.cos(a) * 1600, sy + math.sin(a) * 1600),
+                                     (sx + math.cos(a + 0.05) * 1600, sy + math.sin(a + 0.05) * 1600)], fill=40)
+        im.paste(Image.new("RGB", (w, h), sun), (0, 0), ray.filter(ImageFilter.GaussianBlur(18)))
+    d = ImageDraw.Draw(im)
+
+    def ridge(base, amp, color, step):
+        pts, y = [(0, h)], base
+        for x in range(0, w + step, step):
+            y = max(base - amp, min(base + amp // 3, y + rnd.randint(-amp // 3, amp // 3)))
+            pts.append((x, y))
+        pts.append((w, h))
+        d.polygon(pts, fill=color)
+    ridge(hz - 40, 140, mix(far, glow, 0.25), 90)
+    ridge(hz + 40, 110, far, 70)
+    # near hill where the person stands
+    hill = [(0, h)] + [(x, int(h * 0.80 - 120 * math.exp(-((x - px) / 420) ** 2))) for x in range(0, w + 40, 40)] + [(w, h)]
+    d.polygon(hill, fill=near)
+    top_y = int(h * 0.80 - 120)
+    s = 1.0
+    body = near
+    d.ellipse([px - 22 * s, top_y - 250 * s, px + 22 * s, top_y - 205 * s], fill=body)                     # head
+    d.polygon([(px - 34, top_y - 200), (px + 34, top_y - 200), (px + 26, top_y - 95), (px - 26, top_y - 95)], fill=body)
+    d.line([(px - 30, top_y - 190), (px - 95, top_y - 300)], fill=body, width=22)                          # raised arms
+    d.line([(px + 30, top_y - 190), (px + 95, top_y - 300)], fill=body, width=22)
+    d.line([(px - 14, top_y - 100), (px - 30, top_y + 5)], fill=body, width=26)                            # legs
+    d.line([(px + 14, top_y - 100), (px + 30, top_y + 5)], fill=body, width=26)
+    for _ in range(rnd.randint(9, 16)):                                                                     # birds
+        bx, by, bs = rnd.randint(int(w * .3), int(w * .95)), rnd.randint(int(h * .12), int(h * .45)), rnd.randint(10, 24)
+        d.line([(bx - bs, by - bs // 2), (bx, by), (bx + bs, by - bs // 2)], fill=mix(top, near, .7), width=4)
+    im = im.filter(ImageFilter.GaussianBlur(1.2))
+    im.save(out, "JPEG", quality=92)
+    return out
 
 
 # ---------------------------------------------------------------- 3D book (spine on the left)
