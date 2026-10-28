@@ -190,7 +190,16 @@ def video(p, audio, words, work, out):
     bg = background(p, work)
     hi = p["theme"].get("hi", "#3CE36A").lstrip("#")
     fdir = FONTS.replace(":", "\\:")
-    if os.environ.get("VIDEO_STYLE", "scenes") == "scenes":
+    style = os.environ.get("VIDEO_STYLE", "arc")
+    if style == "arc":
+        try:
+            import arc
+            mp4, art = arc.video(p, audio, words, work, out, total)
+            p["_thumb_style"] = "arc"
+            return mp4, art
+        except Exception as e:
+            print("arc video failed, trying the scene video:", e)
+    if style in ("arc", "scenes"):
         try:
             import scenes
             sv, first = scenes.build(p, words, total, bg, work)
@@ -221,6 +230,12 @@ def video(p, audio, words, work, out):
 
 def thumbnails(p, work, photo_path=None, scene_path=None):
     """A: book left + scene picture behind the words (Arc style). B: words + book + person photo."""
+    if p.get("_thumb_style") == "arc":
+        try:
+            import arc
+            return arc.thumbnails(p, work, scene_path)
+        except Exception as e:
+            print("arc thumbnails failed, using the old ones:", e)
     v = book_vals(p)
     outs = []
     a = p["thumb_a"]
