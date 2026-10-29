@@ -24,8 +24,9 @@ def theme_photo(p, work):
         d = chat("You pick one stock photo for a book-summary video. Reply with JSON only.",
                  f'Book: "{p["book"]}" by {p["author"]}. Idea: {p.get("angle", "")}\n'
                  'Give a 3-5 word English Pexels search for ONE moody, cinematic, symbolic photo that shows the '
-                 'book\'s core idea (e.g. "man silhouette sunrise mountains", "lonely man city night rain", '
-                 '"stairs light success"). No text, no logos. Return {"q": "..."}',
+                 'book\'s core idea, best with ONE person seen from behind in a wide landscape (e.g. "man from behind '
+                 'mountain sunset", "woman from behind looking at city lights", "man sitting cliff sunrise"). '
+                 'No text, no logos. Return {"q": "..."}',
                  as_json=True, max_tokens=200, temperature=0.6)
         q = str(d.get("q") or "").strip()
     except Exception as e:
@@ -298,6 +299,79 @@ body{{position:relative;background:
 def thumbnails(p, work, art):
     a = os.path.join(work, "thumb_A.png")
     b = os.path.join(work, "thumb_B.png")
-    thumb(p, p["thumb_a"], art, a, work)
+    try:  # A = the owner's "Book Summary" layout (uploaded to YouTube); B = the golden-light layout as an option
+        summary_thumb(p, art, a, work)
+    except Exception as e:
+        print("summary thumbnail failed, using the golden one:", e)
+        thumb(p, p["thumb_a"], art, a, work)
     thumb(p, p["thumb_b"], art, b, work, brush="#FFD21F")
     return [a, b]
+
+
+ROUGH = "polygon(1% 18%,7% 6%,22% 10%,40% 2%,63% 8%,84% 1%,99% 9%,97% 40%,100% 72%,94% 96%,70% 91%,48% 99%,24% 93%,6% 98%,3% 70%,0 45%)"
+ROUGH2 = "polygon(0 22%,9% 4%,30% 12%,52% 0,77% 9%,100% 3%,96% 50%,100% 92%,74% 88%,50% 100%,26% 90%,3% 97%,5% 60%)"
+
+
+def summary_thumb(p, art, out, work):
+    """1280x720: photo background (person from behind at sunrise), 3D book left, big 2-line Hindi hook on a black
+    brush, 'Book Summary' on a red brush + 'हिंदी में' on yellow, three green-tick points, a handwritten English
+    tagline top right and the author's name on a white brush bottom right."""
+    e = html.escape
+    h1, h2 = (e(x) for x in p["thumb_hook"][:2])
+    pts = "".join(f'<div class="pt"><i>✓</i><span>{e(x)}</span></div>' for x in p["thumb_points"][:3])
+    tag = e(p.get("thumb_tag_en", ""))
+    words = tag.split()
+    tag_html = (" ".join(words[:len(words) // 2 or 1]) + "<br>" + " ".join(words[len(words) // 2 or 1:])) if len(words) > 1 else tag
+    bg = f"url('file://{os.path.abspath(art)}') 70% 45%/cover" if art else "linear-gradient(160deg,#3b5a7a,#e9a04a 60%,#3a2210)"
+    page = f"""<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Kalam:wght@700&family=Poppins:wght@800;900&display=block" rel="stylesheet">
+<style>{fonts()}
+html,body{{margin:0;width:1280px;height:720px;overflow:hidden;background:#111}}
+.bg{{position:absolute;inset:0;background:{bg};filter:saturate(1.15) contrast(1.05)}}
+.sh{{position:absolute;inset:0;background:linear-gradient(90deg,rgba(0,0,0,.72) 0%,rgba(0,0,0,.45) 32%,rgba(0,0,0,.18) 60%,rgba(0,0,0,0) 80%),
+ linear-gradient(0deg,rgba(0,0,0,.45),rgba(0,0,0,0) 35%)}}
+{BOOK_CSS}
+.bk{{--w:380px;--h:600px;--d:46px;--ry:16deg;left:18px;top:62px}}
+.hook{{position:absolute;left:390px;top:8px;width:600px;z-index:5;text-align:center}}
+.hook .brush{{position:absolute;left:-30px;right:-40px;top:22px;bottom:4px;background:#0a0a0a;clip-path:{ROUGH};opacity:.93}}
+.hook div{{position:relative;font-family:Thumb,Dev,sans-serif;font-weight:800;line-height:1.08;white-space:nowrap}}
+.h1{{font-size:128px;color:#fff;text-shadow:0 6px 0 rgba(0,0,0,.6)}}
+.h2{{font-size:128px;color:#FFE11F;-webkit-text-stroke:3px #000;paint-order:stroke fill;text-shadow:0 6px 0 rgba(0,0,0,.6)}}
+.uline{{position:relative;height:16px;width:78%;margin:-4px auto 0;background:#FFE11F;clip-path:{ROUGH2}}}
+.bs{{position:absolute;left:400px;top:290px;z-index:6;text-align:center;width:560px;white-space:nowrap}}
+.red{{display:inline-block;background:#E3141B;clip-path:{ROUGH};padding:4px 34px 12px;font-family:Poppins,Thumb,sans-serif;font-weight:900;
+ font-size:58px;color:#fff;letter-spacing:-1px;transform:rotate(-2deg);white-space:nowrap;text-shadow:0 3px 0 rgba(0,0,0,.35)}}
+.yel{{display:inline-block;margin-top:-6px;background:#FFE11F;clip-path:{ROUGH2};padding:0 34px 6px;font-family:Thumb,Dev,sans-serif;
+ font-weight:800;font-size:52px;color:#111;transform:rotate(-1deg)}}
+.pts{{position:absolute;left:470px;top:478px;z-index:6}}
+.pt{{display:flex;align-items:center;gap:14px;height:56px}}
+.pt i{{font-style:normal;width:42px;height:42px;border-radius:50%;background:#22C55E;color:#fff;font:900 30px/42px Poppins,sans-serif;
+ text-align:center;box-shadow:0 0 0 3px #fff,0 4px 8px rgba(0,0,0,.6)}}
+.pt span{{font-family:Thumb,Dev,sans-serif;font-weight:800;font-size:42px;color:#fff;text-shadow:0 3px 0 #000,0 0 8px rgba(0,0,0,.8)}}
+.tag{{position:absolute;right:34px;top:22px;z-index:6;font-family:Kalam,cursive;font-weight:700;font-size:44px;line-height:1.05;color:#fff;
+ transform:rotate(-8deg);text-align:center;text-shadow:0 3px 6px rgba(0,0,0,.8)}}
+.tag:after{{content:"";display:block;height:9px;margin:4px 6px 0;background:#FFE11F;border-radius:6px;transform:rotate(-2deg)}}
+.arr{{position:absolute;right:120px;top:150px;width:60px;height:60px;z-index:6}}
+.au{{position:absolute;right:26px;bottom:42px;z-index:6;background:#fff;clip-path:{ROUGH2};padding:12px 40px 18px;transform:rotate(-3deg);
+ font-family:Poppins,Thumb,sans-serif;font-weight:900;font-size:34px;color:#111;text-transform:uppercase;white-space:nowrap}}
+.au:after{{content:"";position:absolute;left:40px;right:40px;bottom:10px;height:6px;background:#FFE11F}}
+</style></head><body>
+<div class="bg"></div><div class="sh"></div>
+{book(p, art)}
+<div class="hook"><div class="brush"></div><div class="h1 fit">{h1}</div><div class="h2 fit">{h2}</div><div class="uline"></div></div>
+<div class="bs"><div class="red">Book Summary</div><br><div class="yel">हिंदी में</div></div>
+<div class="pts">{pts}</div>
+<div class="tag">{tag_html}</div>
+<svg class="arr" viewBox="0 0 60 60"><path d="M12 6 C 30 14, 38 30, 34 50" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
+<path d="M24 42 L 34 52 L 44 40" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round"/></svg>
+<div class="au">{e(p["author"])}</div>
+{FIT}
+<script>
+function fitHook(){{document.querySelectorAll('.fit').forEach(function(t){{var s=parseFloat(getComputedStyle(t).fontSize);
+ while(t.scrollWidth>600&&s>40){{s-=2;t.style.fontSize=s+'px';}}}});
+ document.querySelectorAll('.pt span').forEach(function(t){{var s=42;while(t.getBoundingClientRect().right>1000&&s>24){{s-=2;t.style.fontSize=s+'px';}}}});
+ var a=document.querySelector('.au'),s=34;while(a.offsetWidth>420&&s>18){{s-=2;a.style.fontSize=s+'px';}}}}
+document.fonts.ready.then(fitHook);
+</script></body></html>"""
+    shot(page, out, 1280, 720, work)
+    return out
