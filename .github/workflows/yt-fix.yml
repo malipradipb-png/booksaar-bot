@@ -2,7 +2,7 @@ name: YouTube catch-up
 on:
   workflow_dispatch:
   push:
-    paths: ["bot/reupload.py", ".github/workflows/yt-fix.yml"]
+    paths: ["bot/reupload.py", "bot/youtube.py", ".github/workflows/yt-fix.yml"]
 permissions:
   contents: read
 jobs:
