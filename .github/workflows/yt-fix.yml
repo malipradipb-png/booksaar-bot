@@ -1,0 +1,22 @@
+name: YouTube catch-up
+on:
+  workflow_dispatch:
+  push:
+    paths: ["bot/reupload.py", ".github/workflows/yt-fix.yml"]
+permissions:
+  contents: read
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -q requests
+      - name: Upload videos that never reached YouTube
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python bot/reupload.py
