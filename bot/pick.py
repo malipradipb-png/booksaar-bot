@@ -73,6 +73,9 @@ Return JSON with exactly these keys:
    "dust": "r,g,b of the floating light particles", "thumb_bg": "a CSS linear-gradient for the thumbnail background"}},
  "thumb_a": ["line 1 (2-3 Hindi words)", "line 2: ONE punchy word or number to put in a yellow box", "line 3 (2-3 Hindi words)"],
  "thumb_b": ["line 1 (2-3 Hindi words)", "line 2: 1-2 words in a red brush stroke", "line 3 (2-3 Hindi words)"],
+ "thumb_hook": ["main thumbnail headline, line 1: 1-2 big Hindi words (shown white)", "line 2: 1-2 Hindi words ending with ! (shown yellow), together a strong emotional promise like 'तनाव से' / 'मुक्त जीवन!'"],
+ "thumb_points": ["3 very short Hindi benefit points of 2-3 words each, like 'कम सोचो', 'कम तनाव लो', 'ज़्यादा खुश रहो'"],
+ "thumb_tag_en": "2-4 word catchy English tagline for the corner, like 'Less Stress More Life'",
  "person_query": "English Pexels search for a real person photo with a strong emotion that fits the hook, e.g. 'shocked indian man'",
  "why": "one Hindi line: why this book will do well today"
 }}"""
@@ -102,6 +105,12 @@ def fix(p):
     tb = str(t.get("thumb_bg") or "")
     th["thumb_bg"] = tb if tb.startswith(("linear-gradient", "radial-gradient", "#")) and "<" not in tb and ";" not in tb else ""
     p["theme"] = th
+    hook = [str(x).strip() for x in p.get("thumb_hook") or [] if str(x).strip()] if isinstance(p.get("thumb_hook"), list) else []
+    p["thumb_hook"] = hook[:2] if len(hook) >= 2 else ["ज़िंदगी बदलने", "वाली किताब!"]
+    pts = [str(x).strip() for x in p.get("thumb_points") or [] if str(x).strip()] if isinstance(p.get("thumb_points"), list) else []
+    p["thumb_points"] = pts[:3] if len(pts) >= 3 else ["आसान हिंदी में", "हर बात का सार", "आज से लागू करो"]
+    tag = str(p.get("thumb_tag_en") or "").strip()
+    p["thumb_tag_en"] = tag[:30] if tag and "<" not in tag else "Read Less, Learn More"
     for k, dflt in (("thumb_a", ["रोज़ सुनें", "1 किताब", "बदल देगी"]), ("thumb_b", ["ये किताब", "ज़िंदगी", "बदल देगी"])):
         v = p.get(k)
         v = [str(x) for x in v] if isinstance(v, list) else [str(v or "")]
