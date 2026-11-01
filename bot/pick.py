@@ -39,7 +39,7 @@ def channel_hits():
 
 
 SYSTEM = """You are the content head of the Hindi YouTube channel "Book Saar Hindi" (बुक सार हिंदी), which posts long
-(45-55 minute) Hindi book summaries in the style of the channel Audio Books Arc: one screen with the book on the left,
+(12-15 minute) Hindi book summaries in the style of the channel Audio Books Arc: one screen with the book on the left,
 big Hindi captions on the right, a clear Indian male Hindi voice. Your job is to pick ONE book that will get the most
 views today and plan its package. Reply with JSON only."""
 
