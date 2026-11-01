@@ -57,7 +57,7 @@ def run():
         p = pick.seo(p)
     except Exception as e:
         print("seo step skipped", e)
-    deliver.say(f"🎬 आज की किताब: {p['book']} ({p['author']})\n{p.get('why', '')}\nवीडियो बन रहा है, लगभग 40-60 मिनट लगेंगे।")
+    deliver.say(f"🎬 आज की किताब: {p['book']} ({p['author']})\n{p.get('why', '')}\nवीडियो बन रहा है, लगभग 15-25 मिनट लगेंगे।")
     json.dump(p, open(os.path.join(WORK, "plan.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
 
     chapters = script.outline(p)
