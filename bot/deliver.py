@@ -50,20 +50,39 @@ def pexels(query, out):
 
 
 def release(tag, name, files, body=""):
-    """Attach the files to a GitHub release of this repo; returns {filename: download_url}."""
-    repo, tok = os.environ["GITHUB_REPOSITORY"], os.environ["GITHUB_TOKEN"]
-    h = {"Authorization": f"Bearer {tok}", "Accept": "application/vnd.github+json"}
-    r = requests.post(f"https://api.github.com/repos/{repo}/releases", headers=h,
-                      json={"tag_name": tag, "name": name, "body": body[:20000]}, timeout=60)
-    r.raise_for_status()
-    up = r.json()["upload_url"].split("{")[0]
-    links = {}
-    for path in files:
-        fn = os.path.basename(path)
-        ctype = "video/mp4" if fn.endswith(".mp4") else "image/png" if fn.endswith(".png") else "text/plain"
-        with open(path, "rb") as f:
-            a = requests.post(up, params={"name": fn}, data=f, timeout=1800,
-                              headers={**h, "Content-Type": ctype})
-        a.raise_for_status()
-        links[fn] = a.json()["browser_download_url"]
+    """Attach the files to a GitHub release of this repo; returns {filename: download_url}.
+    Never crashes the run: if GitHub refuses, it retries with a safe unique tag, and if that
+    also fails it returns placeholder links so the video still goes to Telegram and YouTube."""
+    import collections, re, time
+    links = collections.defaultdict(lambda: "(download link not available - see GitHub Actions)")
+    try:
+        repo, tok = os.environ["GITHUB_REPOSITORY"], os.environ["GITHUB_TOKEN"]
+        h = {"Authorization": f"Bearer {tok}", "Accept": "application/vnd.github+json"}
+        url = f"https://api.github.com/repos/{repo}/releases"
+        safe = re.sub(r"[^A-Za-z0-9._-]+", "-", tag).strip("-.") or "video"
+        payload = {"tag_name": safe, "name": (name or safe)[:200], "body": (body or "")[:5000]}
+        r = requests.post(url, headers=h, json=payload, timeout=60)
+        if not r.ok:
+            print("release refused", r.status_code, r.text[:800])
+            payload["tag_name"] = f"{safe}-{int(time.time())}"
+            r = requests.post(url, headers=h, json=payload, timeout=60)
+        if not r.ok:
+            print("release refused again", r.status_code, r.text[:800])
+            return links
+        up = r.json()["upload_url"].split("{")[0]
+        for path in files:
+            fn = os.path.basename(path)
+            ctype = "video/mp4" if fn.endswith(".mp4") else "image/png" if fn.endswith(".png") else "text/plain"
+            try:
+                with open(path, "rb") as f:
+                    a = requests.post(up, params={"name": fn}, data=f, timeout=1800,
+                                      headers={**h, "Content-Type": ctype})
+                if a.ok:
+                    links[fn] = a.json()["browser_download_url"]
+                else:
+                    print("asset upload failed", fn, a.status_code, a.text[:300])
+            except Exception as e:
+                print("asset upload error", fn, e)
+    except Exception as e:
+        print("release error", e)
     return links
