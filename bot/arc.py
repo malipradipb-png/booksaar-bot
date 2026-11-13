@@ -299,13 +299,59 @@ body{{position:relative;background:
 def thumbnails(p, work, art):
     a = os.path.join(work, "thumb_A.png")
     b = os.path.join(work, "thumb_B.png")
-    try:  # A = the owner's "Book Summary" layout (uploaded to YouTube); B = the golden-light layout as an option
+    try:  # A = Book Saar house style (uploaded to YouTube); B = the photo "Book Summary" layout as an option
+        brand_thumb(p, a, work)
+    except Exception as e:
+        print("brand thumbnail failed, using the summary one:", e)
         summary_thumb(p, art, a, work)
+    try:
+        summary_thumb(p, art, b, work)
     except Exception as e:
         print("summary thumbnail failed, using the golden one:", e)
-        thumb(p, p["thumb_a"], art, a, work)
-    thumb(p, p["thumb_b"], art, b, work, brush="#FFD21F")
+        thumb(p, p["thumb_b"], art, b, work, brush="#FFD21F")
     return [a, b]
+
+
+# Book Saar house style (Nov 2026): flat colour panel left, dark diagonal right with a drawn book, big 2-line Hindi
+# hook (second line on a colour strip), author + "बुक सार हिंदी" badge. Same look as the 35 thumbnails already on the channel.
+BRAND = [("#FFCC00", "#DC143C", "#fff"), ("#00C8AA", "#FFEB00", "#111"), ("#FF7800", "#0F0F0F", "#fff"), ("#50A0FF", "#FFE600", "#111")]
+BOOK_COLORS = ["#192350", "#781428", "#0A503C", "#461E6E", "#1E1E1E", "#964600"]
+
+
+def brand_page(hook1, hook2, book, author, idx):
+    e = html.escape
+    bg, strip, strip_ink = BRAND[idx % len(BRAND)]
+    cover = BOOK_COLORS[idx % len(BOOK_COLORS)]
+    return f"""<!doctype html><html><head><meta charset="utf-8"><style>{fonts()}
+html,body{{margin:0;width:1280px;height:720px;overflow:hidden;background:{bg};font-family:Dev,Thumb,sans-serif}}
+.dark{{position:absolute;inset:0;background:#14141c;clip-path:polygon(760px 0,1280px 0,1280px 720px,640px 720px)}}
+.book{{position:absolute;left:830px;top:130px;width:320px;height:440px;background:{cover};border-radius:12px;
+ box-shadow:25px 25px 40px rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:0 30px 0 52px;box-sizing:border-box}}
+.book:before{{content:"";position:absolute;left:0;top:0;bottom:0;width:22px;background:rgba(0,0,0,.3);border-radius:12px 0 0 12px}}
+.book:after{{content:"";position:absolute;right:-22px;top:10px;bottom:4px;width:22px;background:#f5f5eb;z-index:-1}}
+.book span{{color:#fff;font:700 44px/1.15 Poppins,Thumb,sans-serif;text-transform:uppercase;text-align:center;word-break:break-word}}
+.h{{position:absolute;left:50px;font-weight:800;line-height:1.1;white-space:nowrap}}
+#h1{{top:80px;color:#0f0f0f;font-size:128px}}
+#h2{{top:250px;font-size:120px;color:{strip_ink};background:{strip};padding:6px 22px 14px;left:35px}}
+.au{{position:absolute;left:52px;top:545px;font:700 40px Poppins,Thumb,sans-serif;color:#0f0f0f}}
+.br{{position:absolute;left:45px;top:610px;height:70px;padding:0 24px;border-radius:35px;background:#0f0f0f;color:{bg};
+ font-size:46px;font-weight:800;line-height:70px}}
+</style><link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700&display=block" rel="stylesheet"></head><body>
+<div class="dark"></div><div class="book"><span id="bt">{e(book)}</span></div>
+<div class="h" id="h1">{e(hook1)}</div><div class="h" id="h2">{e(hook2)}</div>
+<div class="au">{e(author)}</div><div class="br">बुक सार हिंदी</div>
+<script>
+function fit(el,max){{let s=parseFloat(getComputedStyle(el).fontSize);while(el.offsetWidth>max&&s>40){{s-=4;el.style.fontSize=s+"px";}}}}
+fit(document.getElementById("h1"),650);fit(document.getElementById("h2"),600);
+const b=document.getElementById("bt");let s=44;while(b.scrollHeight>380&&s>24){{s-=2;b.style.fontSize=s+"px";}}
+const h1=document.getElementById("h1"),h2=document.getElementById("h2");h2.style.top=(80+h1.offsetHeight+30)+"px";
+</script></body></html>"""
+
+
+def brand_thumb(p, out, work):
+    hook = (p.get("thumb_hook") or ["ज़िंदगी बदलने", "वाली किताब!"])[:2]
+    idx = sum(ord(c) for c in p["book"])
+    render.shot(brand_page(hook[0], hook[1], p["book"], p["author"], idx), out, 1280, 720, work)
 
 
 ROUGH = "polygon(1% 18%,7% 6%,22% 10%,40% 2%,63% 8%,84% 1%,99% 9%,97% 40%,100% 72%,94% 96%,70% 91%,48% 99%,24% 93%,6% 98%,3% 70%,0 45%)"
