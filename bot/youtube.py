@@ -25,10 +25,20 @@ def enabled():
 
 
 def access_token():
+    """Preferred: refresh token stored as GitHub secrets (no extra server needed).
+    Fallback: the old Cloudflare worker that kept the token (agr-trend)."""
+    rt, cid, sec = (os.environ.get(k, "").strip() for k in ("YT_REFRESH_TOKEN", "YT_CLIENT_ID", "YT_CLIENT_SECRET"))
+    if rt and cid and sec:
+        r = requests.post("https://oauth2.googleapis.com/token", timeout=30,
+                          data={"client_id": cid, "client_secret": sec, "refresh_token": rt, "grant_type": "refresh_token"})
+        if r.status_code != 200:
+            raise RuntimeError(f"YouTube token (Google): {r.status_code} {r.text[:300]}")
+        return r.json()["access_token"]
     auth = hashlib.sha256(("yt-token:" + os.environ["BOT_TOKEN"]).encode()).hexdigest()[:40]
     r = requests.post(TOKEN_URL, headers={"X-Auth": auth}, timeout=30)
     if r.status_code != 200:
-        raise RuntimeError(f"YouTube token: {r.status_code} {r.text[:200]}")
+        raise RuntimeError(f"YouTube token: {r.status_code} {r.text[:200]} (add YT_REFRESH_TOKEN, YT_CLIENT_ID, "
+                           "YT_CLIENT_SECRET as GitHub secrets)")
     return r.json()["access_token"]
 
 

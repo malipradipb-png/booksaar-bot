@@ -46,6 +46,9 @@ jobs:
         env:
           GROQ_KEY: ${{ secrets.GROQ_KEY }}
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
           TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
           PEXELS_KEY: ${{ secrets.PEXELS_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
