@@ -39,7 +39,7 @@ def access_token():
                        " (repo Settings > Secrets and variables > Actions). The old agr-trend worker no longer exists.")
 
 
-def upload(mp4, title, description, tags, publish_at, thumb=None, en=(None, None)):
+def upload(mp4, title, description, tags, publish_at, thumb=None, en=(None, None), playlist=True):
     """publish_at: aware datetime. Returns the video id."""
     tok = access_token()
     h = {"Authorization": f"Bearer {tok}"}
@@ -86,10 +86,11 @@ def upload(mp4, title, description, tags, publish_at, thumb=None, en=(None, None
                               headers={**h, "Content-Type": "image/png"}, data=f, timeout=120).raise_for_status()
         except Exception as e:
             print("thumbnail failed", e)
-    try:
-        add_to_playlist(h, vid)
-    except Exception as e:
-        print("playlist failed", e)
+    if playlist:
+        try:
+            add_to_playlist(h, vid)
+        except Exception as e:
+            print("playlist failed", e)
     return vid
 
 

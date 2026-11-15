@@ -2,7 +2,7 @@
 import datetime, json, os, re, sys, traceback
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import deliver, pick, render, script, tts, youtube
+import deliver, pick, render, script, shorts, tts, youtube
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 DONE = os.path.join(ROOT, "data", "done.json")
@@ -23,6 +23,40 @@ def mmss(t):
 
 def slug(s):
     return re.sub(r"[^a-z0-9]+", "-", s.lower()).strip("-")[:40]
+
+
+SHORT_SLOTS = os.environ.get("SHORT_TIMES", "09:30,13:30,20:30").split(",")  # 3 Shorts a day
+
+
+def next_short_slot(now, taken=()):
+    busy = {x.astimezone(IST).strftime("%Y-%m-%d %H:%M") for x in taken}
+    for add in range(30):
+        day = now + datetime.timedelta(days=add)
+        for s in SHORT_SLOTS:
+            hh, mm = map(int, s.split(":"))
+            t = day.replace(hour=hh, minute=mm, second=0, microsecond=0)
+            if t > now + datetime.timedelta(minutes=30) and t.strftime("%Y-%m-%d %H:%M") not in busy:
+                return t
+    return now + datetime.timedelta(hours=3)
+
+
+def post_shorts(p, mp4, words, chaps, total, vid):
+    """2 Shorts from the night video and 1 from the day video = 3 a day, each linking to the full video."""
+    n = int(os.environ.get("SHORTS_PER_VIDEO") or (2 if datetime.datetime.now(IST).hour < 9 else 1))
+    if n <= 0:
+        return
+    made = shorts.make(p, mp4, words, chaps, total, os.path.join(WORK, "shorts"), n)
+    taken = youtube.scheduled_times()
+    for path, title in made:
+        when = next_short_slot(datetime.datetime.now(IST), taken)
+        st = f"{title} | {p['book']} Book Summary #shorts"
+        if len(st) > 100:
+            st = f"{title[:100 - len(p['book']) - 12]} | {p['book']} #shorts"
+        desc = (f"{title} — {p['author']} की किताब \"{p['book']}\" ({p['book_hi']}) से एक सीख।\n\n"
+                f"▶️ पूरी किताब का सार देखें: https://youtu.be/{vid}\n\n#shorts #BookSummary #BookSummaryInHindi")
+        sid = youtube.upload(path, st[:100], desc, (p.get("tags") or [])[:10] + ["shorts"], when, None, playlist=False)
+        taken.append(when)
+        deliver.say(f"🎞️ Short तैयार: {title}\n{when:%d %b, %I:%M %p} पर पब्लिक होगा: https://youtu.be/{sid}")
 
 
 def next_slot(now, taken=()):
@@ -120,7 +154,13 @@ def run():
                                  en=(p.get("en_title"), p.get("en_desc")))
             deliver.say(f"📺 YouTube par upload ho gaya aur {when:%d %b, %I:%M %p} par apne aap public hoga:\nhttps://youtu.be/{vid}")
         except Exception as e:
+            vid = None
             deliver.say(f"⚠️ YouTube upload nahi hua ({str(e)[:300]}). Upar ke link se khud upload kar dein.")
+        if vid and os.environ.get("SHORTS", "on") != "off":
+            try:
+                post_shorts(p, mp4, words, chaps, tts.dur(audio), vid)
+            except Exception as e:
+                deliver.say(f"⚠️ Shorts nahi bane ({str(e)[:300]}).")
 
     done.append(p["book"])
     json.dump(done, open(DONE, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
