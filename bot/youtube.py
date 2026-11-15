@@ -78,3 +78,31 @@ def upload(mp4, title, description, tags, publish_at, thumb=None):
         except Exception as e:
             print("thumbnail failed", e)
     return vid
+
+
+def scheduled_times():
+    """publishAt times of the channel's videos that are still waiting to go public."""
+    import datetime
+    tok = access_token()
+    h = {"Authorization": f"Bearer {tok}"}
+    api = "https://www.googleapis.com/youtube/v3/"
+    ch = requests.get(api + "channels", params={"part": "contentDetails", "mine": "true"}, headers=h, timeout=60)
+    ch.raise_for_status()
+    up = ch.json()["items"][0]["contentDetails"]["relatedPlaylists"]["uploads"]
+    items = requests.get(api + "playlistItems", params={"part": "contentDetails", "playlistId": up, "maxResults": 50},
+                         headers=h, timeout=60)
+    items.raise_for_status()
+    ids = [i["contentDetails"]["videoId"] for i in items.json().get("items", [])]
+    if not ids:
+        return []
+    v = requests.get(api + "videos", params={"part": "status", "id": ",".join(ids)}, headers=h, timeout=60)
+    v.raise_for_status()
+    now = datetime.datetime.now(datetime.timezone.utc)
+    out = []
+    for it in v.json().get("items", []):
+        pa = it["status"].get("publishAt")
+        if pa:
+            t = datetime.datetime.fromisoformat(pa.replace("Z", "+00:00"))
+            if t > now:
+                out.append(t)
+    return out

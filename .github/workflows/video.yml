@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       book:
-        description: "Book name (leave empty and the bot picks a trending book)"
+        description: "Book name, or several separated by | (leave empty and the bot picks a trending book)"
         required: false
         default: ""
 
@@ -54,7 +54,15 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           FORCE_BOOK: ${{ github.event.inputs.book }}
           YT_UPLOAD: ${{ vars.YT_UPLOAD }}
-        run: python bot/main.py
+        run: |
+          if [ -n "$FORCE_BOOK" ]; then
+            IFS='|' read -ra BOOKS <<< "$FORCE_BOOK"
+            for b in "${BOOKS[@]}"; do
+              FORCE_BOOK="$(echo "$b" | xargs)" python bot/main.py || echo "failed: $b"
+            done
+          else
+            python bot/main.py
+          fi
 
       - name: Remember the book
         if: success()

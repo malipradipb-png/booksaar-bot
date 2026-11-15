@@ -25,14 +25,16 @@ def slug(s):
     return re.sub(r"[^a-z0-9]+", "-", s.lower()).strip("-")[:40]
 
 
-def next_slot(now):
-    """First posting slot at least 30 minutes from now (today, tomorrow or the day after)."""
-    for add in range(3):
+def next_slot(now, taken=()):
+    """First free posting slot at least 30 minutes from now. Slots already used by a scheduled
+    YouTube video are skipped, so two videos never go public at the same time."""
+    busy = {x.astimezone(IST).strftime("%Y-%m-%d %H:%M") for x in taken}
+    for add in range(21):
         day = now + datetime.timedelta(days=add)
         for s in WEEK_SLOTS[day.weekday()]:
             hh, mm = map(int, s.split(":"))
             t = day.replace(hour=hh, minute=mm, second=0, microsecond=0)
-            if t > now + datetime.timedelta(minutes=30):
+            if t > now + datetime.timedelta(minutes=30) and t.strftime("%Y-%m-%d %H:%M") not in busy:
                 return t
     return now + datetime.timedelta(hours=2)
 
@@ -50,7 +52,13 @@ def run():
     done = json.load(open(DONE, encoding="utf-8"))
     forced = os.environ.get("FORCE_BOOK", "").strip() or None
     now = datetime.datetime.now(IST)
-    when = next_slot(now)
+    taken = []
+    if youtube.enabled():
+        try:
+            taken = youtube.scheduled_times()
+        except Exception as e:
+            print("could not read scheduled videos:", e)
+    when = next_slot(now, taken)
 
     p = pick.plan(done, forced)
     try:
@@ -73,6 +81,7 @@ def run():
 
     photo = deliver.pexels(p.get("person_query", "thinking indian man"), os.path.join(WORK, "person.jpg"))
     thumbs = render.thumbnails(p, WORK, photo, scene_pic)
+    thumbs = thumbs[:1]  # only thumbnail A is used (owner's choice)
 
     desc = description(p, chaps)
     meta = os.path.join(WORK, name + ".txt")
@@ -90,9 +99,11 @@ def run():
 
     if youtube.enabled():
         try:
-            soon = next_slot(datetime.datetime.now(IST))  # making the video can take long; never schedule in the past
-            if soon > when:
-                when = soon
+            try:
+                taken = youtube.scheduled_times()
+            except Exception as e:
+                print("could not read scheduled videos:", e)
+            when = next_slot(datetime.datetime.now(IST), taken)  # re-check: making the video takes time
             vid = youtube.upload(mp4, p["title"], desc, p["tags"], when, thumbs[0])
             deliver.say(f"📺 YouTube par upload ho gaya aur {when:%d %b, %I:%M %p} par apne aap public hoga:\nhttps://youtu.be/{vid}")
         except Exception as e:
