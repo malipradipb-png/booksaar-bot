@@ -46,6 +46,7 @@ def post_shorts(p, mp4, words, chaps, total, vid):
     if n <= 0:
         return
     made = shorts.make(p, mp4, words, chaps, total, os.path.join(WORK, "shorts"), n)
+    print(f"SHORTS made {len(made)} of {n}")
     taken = youtube.scheduled_times()
     for path, title in made:
         when = next_short_slot(datetime.datetime.now(IST), taken)
@@ -56,6 +57,7 @@ def post_shorts(p, mp4, words, chaps, total, vid):
                 f"▶️ पूरी किताब का सार देखें: https://youtu.be/{vid}\n\n#shorts #BookSummary #BookSummaryInHindi")
         sid = youtube.upload(path, st[:100], desc, (p.get("tags") or [])[:10] + ["shorts"], when, None, playlist=False)
         taken.append(when)
+        print(f"SHORT OK {sid} {when:%Y-%m-%d %H:%M} {title}")
         deliver.say(f"🎞️ Short तैयार: {title}\n{when:%d %b, %I:%M %p} पर पब्लिक होगा: https://youtu.be/{sid}")
 
 
@@ -160,6 +162,7 @@ def run():
             try:
                 post_shorts(p, mp4, words, chaps, tts.dur(audio), vid)
             except Exception as e:
+                print("SHORTS FAILED", repr(e)[:500])
                 deliver.say(f"⚠️ Shorts nahi bane ({str(e)[:300]}).")
 
     done.append(p["book"])
