@@ -36,6 +36,7 @@ async def _say(text, path):
 
 
 def say(text, path):
+    text = re.sub(r"[“”„‟«»\"]", "", text).replace("‘", "'").replace("’", "'")  # curly quotes made the TTS return no audio
     last = None
     for _ in range(4):
         try:
