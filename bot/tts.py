@@ -5,9 +5,13 @@ VOICE = os.environ.get("VOICE", "hi-IN-MadhurNeural")
 RATE = os.environ.get("VOICE_RATE", "+2%")     # +12% sounded rushed and robotic
 PITCH = os.environ.get("VOICE_PITCH", "-2Hz")  # slightly deeper, warmer
 # light studio polish: cut rumble, add warmth, gentle compression, broadcast loudness
-POLISH = ("highpass=f=70,equalizer=f=180:t=q:w=1.2:g=2.5,equalizer=f=3500:t=q:w=1.5:g=1.5,"
-          "equalizer=f=7500:t=q:w=2:g=-2,acompressor=threshold=-20dB:ratio=2.5:attack=8:release=180:makeup=2,"
-          "loudnorm=I=-16:TP=-1.5:LRA=9")
+POLISH = ("highpass=f=80,lowpass=f=11000,"                      # remove rumble and hiss
+          "equalizer=f=140:t=q:w=1:g=1.5,"                       # a little body
+          "equalizer=f=320:t=q:w=1.2:g=-3,"                      # cut the boxy/muddy range
+          "equalizer=f=3800:t=q:w=1.4:g=3.5,"                    # presence: words sound clear
+          "equalizer=f=7200:t=q:w=2:g=-2,"                       # soften harsh 's' sounds
+          "acompressor=threshold=-21dB:ratio=3:attack=6:release=160:makeup=2,"
+          "loudnorm=I=-15:TP=-1.5:LRA=8")
 
 
 def dur(path):
