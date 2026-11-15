@@ -30,6 +30,7 @@ def write(p, chapters):
     parts = []
     intro = chat(STYLE, f"""Write the opening (about 150 words, it is spoken in the first 45 seconds) for the video on "{p['book']}" by {p['author']}.
 The very first sentence must be a strong hook that makes the listener stay: a bold promise, a surprising fact or a sharp question about this problem: {p['angle']}. No slow build-up.
+Within the first three sentences say the book name ("{p['book']}" and "{p.get('book_hi', '')}") and the author's name naturally, because YouTube search reads the spoken words.
 Say what the listener will get by the end. Then one line asking them to subscribe to "बुक सार हिंदी" and press the bell.
 Do not start with greetings like "नमस्ते दोस्तों".""", max_tokens=1500)
     parts.append(("शुरुआत", clean(intro)))

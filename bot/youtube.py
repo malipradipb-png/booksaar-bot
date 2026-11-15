@@ -39,7 +39,7 @@ def access_token():
                        " (repo Settings > Secrets and variables > Actions). The old agr-trend worker no longer exists.")
 
 
-def upload(mp4, title, description, tags, publish_at, thumb=None):
+def upload(mp4, title, description, tags, publish_at, thumb=None, en=(None, None)):
     """publish_at: aware datetime. Returns the video id."""
     tok = access_token()
     h = {"Authorization": f"Bearer {tok}"}
@@ -47,17 +47,26 @@ def upload(mp4, title, description, tags, publish_at, thumb=None):
         "snippet": {"title": title[:100], "description": description.replace("<", "").replace(">", "")[:4900],
                     "tags": clean_tags(tags),
                     "categoryId": "27", "defaultLanguage": "hi", "defaultAudioLanguage": "hi"},
+        **({"localizations": {"en": {"title": en[0][:100], "description": ((en[1] or "") + "\n\n" + description)[:4900]
+                                      .replace("<", "").replace(">", "")}}} if en and en[0] else {}),
         "status": {"privacyStatus": "private", "publishAt": publish_at.astimezone().isoformat(),
                    "selfDeclaredMadeForKids": False, "containsSyntheticMedia": True},
     }
     size = os.path.getsize(mp4)
-    init = requests.post("https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status",
+    init = requests.post("https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status" + (",localizations" if "localizations" in body else ""),
                          headers={**h, "Content-Type": "application/json; charset=UTF-8",
                                   "X-Upload-Content-Type": "video/mp4", "X-Upload-Content-Length": str(size)},
                          data=json.dumps(body), timeout=60)
     if init.status_code == 400 and "invalidTags" in init.text:  # last resort: upload without tags rather than not at all
         print("tags rejected, uploading without tags:", body["snippet"]["tags"])
         body["snippet"]["tags"] = []
+        init = requests.post("https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status" + (",localizations" if "localizations" in body else ""),
+                             headers={**h, "Content-Type": "application/json; charset=UTF-8",
+                                      "X-Upload-Content-Type": "video/mp4", "X-Upload-Content-Length": str(size)},
+                             data=json.dumps(body), timeout=60)
+    if init.status_code == 400 and "localizations" in body:  # never lose an upload over the English title
+        print("localizations rejected, uploading without:", init.text[:300])
+        body.pop("localizations")
         init = requests.post("https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status",
                              headers={**h, "Content-Type": "application/json; charset=UTF-8",
                                       "X-Upload-Content-Type": "video/mp4", "X-Upload-Content-Length": str(size)},
@@ -77,7 +86,33 @@ def upload(mp4, title, description, tags, publish_at, thumb=None):
                               headers={**h, "Content-Type": "image/png"}, data=f, timeout=120).raise_for_status()
         except Exception as e:
             print("thumbnail failed", e)
+    try:
+        add_to_playlist(h, vid)
+    except Exception as e:
+        print("playlist failed", e)
     return vid
+
+
+PLAYLIST = "Book Summary in Hindi | सभी किताबों का सार"
+
+
+def add_to_playlist(h, vid):
+    """Keep every video in one public playlist: viewers binge more, which helps search and suggestions."""
+    api = "https://www.googleapis.com/youtube/v3/"
+    r = requests.get(api + "playlists", params={"part": "snippet", "mine": "true", "maxResults": 50}, headers=h, timeout=60)
+    r.raise_for_status()
+    pid = next((x["id"] for x in r.json().get("items", []) if x["snippet"]["title"] == PLAYLIST), None)
+    if not pid:
+        r = requests.post(api + "playlists", params={"part": "snippet,status"}, headers={**h, "Content-Type": "application/json"},
+                          data=json.dumps({"snippet": {"title": PLAYLIST, "defaultLanguage": "hi",
+                                                       "description": "हर दिन एक नई किताब का सार आसान हिंदी में। Book summaries in Hindi."},
+                                           "status": {"privacyStatus": "public"}}), timeout=60)
+        r.raise_for_status()
+        pid = r.json()["id"]
+    r = requests.post(api + "playlistItems", params={"part": "snippet"}, headers={**h, "Content-Type": "application/json"},
+                      data=json.dumps({"snippet": {"playlistId": pid, "position": 0,
+                                                   "resourceId": {"kind": "youtube#video", "videoId": vid}}}), timeout=60)
+    r.raise_for_status()
 
 
 def scheduled_times():

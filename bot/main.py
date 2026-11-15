@@ -40,11 +40,23 @@ def next_slot(now, taken=()):
 
 
 def description(p, chapters):
+    """Search-friendly description: keyword line first (shown in search results), lessons, chapters, related searches."""
     stamps = "\n".join(f"{mmss(t)} {title}" for t, title in chapters)
-    return (f"{p['angle']}\n\nइस वीडियो में {p['author']} की किताब \"{p['book']}\" ({p['book_hi']}) का पूरा सार आसान हिंदी में।\n\n"
-            f"⏱️ Chapters\n{stamps}\n\nरोज़ एक नई किताब के लिए बुक सार हिंदी को सब्सक्राइब करें और बेल आइकन दबाएँ।\n\n"
-            f"यह वीडियो किताब का स्वतंत्र सार और समीक्षा है, केवल शिक्षा के उद्देश्य से। मूल किताब ज़रूर पढ़ें।\n\n"
-            + " ".join(p.get("hashtags", [])))
+    first = p.get("desc_first_line") or f"{p['book']} Book Summary in Hindi | {p['book_hi']} का सार | {p['author']}"
+    out = [first, p.get("angle", ""), "",
+           f"इस वीडियो में {p['author']} की किताब \"{p['book']}\" ({p['book_hi']}) का पूरा सार आसान हिंदी में।"]
+    if p.get("lessons"):
+        out += ["", "📌 इस वीडियो में आप सीखेंगे:"] + [f"✅ {x}" for x in p["lessons"]]
+    out += ["", "⏱️ Chapters", stamps]
+    if p.get("author_line"):
+        out += ["", f"✍️ लेखक: {p['author_line']}"]
+    out += ["", "🔔 रोज़ एक नई किताब के लिए बुक सार हिंदी को सब्सक्राइब करें और बेल आइकन दबाएँ।"]
+    terms = [t for t in p.get("search_terms", []) if t.lower() != p["book"].lower()][:8]
+    if terms:
+        out += ["", "🔎 Related: " + " | ".join(terms)]
+    out += ["", "यह वीडियो किताब का स्वतंत्र सार और समीक्षा है, केवल शिक्षा के उद्देश्य से। मूल किताब ज़रूर पढ़ें।", "",
+            " ".join(p.get("hashtags", [])[:3])]
+    return "\n".join(out)
 
 
 def run():
@@ -104,7 +116,8 @@ def run():
             except Exception as e:
                 print("could not read scheduled videos:", e)
             when = next_slot(datetime.datetime.now(IST), taken)  # re-check: making the video takes time
-            vid = youtube.upload(mp4, p["title"], desc, p["tags"], when, thumbs[0])
+            vid = youtube.upload(mp4, p["title"], desc, p["tags"], when, thumbs[0],
+                                 en=(p.get("en_title"), p.get("en_desc")))
             deliver.say(f"📺 YouTube par upload ho gaya aur {when:%d %b, %I:%M %p} par apne aap public hoga:\nhttps://youtu.be/{vid}")
         except Exception as e:
             deliver.say(f"⚠️ YouTube upload nahi hua ({str(e)[:300]}). Upar ke link se khud upload kar dein.")

@@ -151,10 +151,17 @@ Current tags: {json.dumps(p['tags'], ensure_ascii=False)}
 Real YouTube search suggestions people type right now:
 {json.dumps(seen[:40], ensure_ascii=False)}
 
-Improve the title and tags using the most relevant real search phrases. Keep the strong Hindi hook at the start of the title,
-keep it under 95 characters, and keep the book name and 'Book Summary in Hindi' in it. Do not use clickbait that the video
-does not deliver. Return JSON: {{"title": "...", "tags": ["15-25 tags, most searched first"], "hashtags": ["#BookSummary", "3 more"]}}""",
-               as_json=True, max_tokens=1200, temperature=0.4)
+Improve the title and tags using the most relevant real search phrases. Keep a SHORT strong Hindi hook at the start of the title
+(max 25 characters) so the English book name appears within the first 55 characters (mobile cuts long titles). Keep it under 95
+characters and keep the book name and 'Book Summary in Hindi' in it. Do not use clickbait that the video does not deliver.
+Return JSON: {{"title": "...", "tags": ["15-25 tags, most searched first, include Hindi-script and English spellings"],
+"hashtags": ["#BookSummary", "#BookSummaryInHindi", "1 tag with the book name"],
+"desc_first_line": "first description line, under 140 characters: '<Book> Book Summary in Hindi | <Hindi title> का सार | <Author>' style, the exact words people search",
+"lessons": ["5 to 7 key lessons from the book, each one short Hindi sentence"],
+"author_line": "one Hindi sentence about who the author is",
+"en_title": "English YouTube title under 95 characters with the book name and 'Book Summary in Hindi'",
+"en_desc": "2-3 sentence English description of what the viewer learns"}}""",
+               as_json=True, max_tokens=2000, temperature=0.4)
     t = str(out.get("title") or "").strip()
     if 20 <= len(t) <= 100:
         p["title"] = t
@@ -162,5 +169,11 @@ does not deliver. Return JSON: {{"title": "...", "tags": ["15-25 tags, most sear
         p["tags"] = [str(x) for x in out["tags"]][:25]
     if isinstance(out.get("hashtags"), list) and out["hashtags"]:
         p["hashtags"] = [str(x) for x in out["hashtags"]][:5]
+    for k in ("desc_first_line", "author_line", "en_title", "en_desc"):
+        v = str(out.get(k) or "").strip().replace("<", "").replace(">", "")
+        if v:
+            p[k] = v
+    if isinstance(out.get("lessons"), list):
+        p["lessons"] = [str(x).strip() for x in out["lessons"] if str(x).strip()][:7]
     p["search_terms"] = seen[:15]
     return p
