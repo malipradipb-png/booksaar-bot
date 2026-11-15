@@ -34,12 +34,9 @@ def access_token():
         if r.status_code != 200:
             raise RuntimeError(f"YouTube token (Google): {r.status_code} {r.text[:300]}")
         return r.json()["access_token"]
-    auth = hashlib.sha256(("yt-token:" + os.environ["BOT_TOKEN"]).encode()).hexdigest()[:40]
-    r = requests.post(TOKEN_URL, headers={"X-Auth": auth}, timeout=30)
-    if r.status_code != 200:
-        raise RuntimeError(f"YouTube token: {r.status_code} {r.text[:200]} (add YT_REFRESH_TOKEN, YT_CLIENT_ID, "
-                           "YT_CLIENT_SECRET as GitHub secrets)")
-    return r.json()["access_token"]
+    missing = [k for k, v in (("YT_REFRESH_TOKEN", rt), ("YT_CLIENT_ID", cid), ("YT_CLIENT_SECRET", sec)) if not v]
+    raise RuntimeError("YouTube secrets missing in GitHub: " + ", ".join(missing) +
+                       " (repo Settings > Secrets and variables > Actions). The old agr-trend worker no longer exists.")
 
 
 def upload(mp4, title, description, tags, publish_at, thumb=None):

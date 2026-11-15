@@ -28,8 +28,8 @@ def main():
 
     repo, gh = os.environ["GITHUB_REPOSITORY"], os.environ["GITHUB_TOKEN"]
     h = {"Authorization": f"Bearer {gh}", "Accept": "application/vnd.github+json"}
-    rels = requests.get(f"https://api.github.com/repos/{repo}/releases", params={"per_page": 6}, headers=h, timeout=60).json()
-    cutoff = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=3)
+    rels = requests.get(f"https://api.github.com/repos/{repo}/releases", params={"per_page": 20}, headers=h, timeout=60).json()
+    cutoff = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=10)
     missing = []
     for rel in rels:  # newest first
         if datetime.datetime.fromisoformat(rel["created_at"].replace("Z", "+00:00")) < cutoff:
