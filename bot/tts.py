@@ -76,12 +76,29 @@ def narrate(parts, work):
     for title, text in parts:
         chapters.append((t, title))
         for piece in pieces(text):
-            n += 1
-            p = os.path.join(work, f"p{n:03d}.mp3")
-            w = say(piece, p)
-            words += [(a + t, b + t, x) for a, b, x in w]
-            files.append(p)
-            t += dur(p)
+            if not re.search(r"[\w\u0900-\u097F]", piece):
+                continue  # nothing speakable (only punctuation) -> TTS returns no audio
+            try:
+                n += 1
+                p = os.path.join(work, f"p{n:03d}.mp3")
+                w = say(piece, p)
+                done = [(p, w)]
+            except RuntimeError as e:  # retry sentence by sentence and skip the one that cannot be spoken
+                print("TTS piece failed, retrying by sentence:", e)
+                done = []
+                for sent in re.split(r"(?<=[।?!.])\s+", piece):
+                    if not re.search(r"[\w\u0900-\u097F]", sent):
+                        continue
+                    n += 1
+                    p = os.path.join(work, f"p{n:03d}.mp3")
+                    try:
+                        done.append((p, say(sent, p)))
+                    except RuntimeError as e2:
+                        print("skipped sentence:", sent[:80], e2)
+            for p, w in done:
+                words += [(a + t, b + t, x) for a, b, x in w]
+                files.append(p)
+                t += dur(p)
             files.append(breath)
             t += bgap
         files.append(silence)
