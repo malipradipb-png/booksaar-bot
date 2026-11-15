@@ -10,8 +10,8 @@ POLISH = ("highpass=f=80,lowpass=f=11000,"                      # remove rumble 
           "equalizer=f=320:t=q:w=1.2:g=-3,"                      # cut the boxy/muddy range
           "equalizer=f=3800:t=q:w=1.4:g=3.5,"                    # presence: words sound clear
           "equalizer=f=7200:t=q:w=2:g=-2,"                       # soften harsh 's' sounds
-          "acompressor=threshold=-21dB:ratio=3:attack=6:release=160:makeup=2,"
-          "loudnorm=I=-15:TP=-1.5:LRA=8")
+          "acompressor=threshold=-21dB:ratio=2.5:attack=6:release=160,"
+          "loudnorm=I=-20:TP=-3:LRA=9")   # owner found -15 LUFS too loud
 
 
 def dur(path):
