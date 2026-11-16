@@ -2,8 +2,8 @@ name: Daily book video
 
 on:
   schedule:
-    - cron: "30 20 * * *"   # 02:00 IST  -> ready for the morning post (7 AM weekdays, 10/11 AM weekends)
-    - cron: "0 6 * * *"     # 11:30 IST  -> ready for the evening post (5 PM weekdays, 6 PM Sat, 4 PM Sun)
+    - cron: "13 20 * * *"   # 01:43 IST (off the busy :00/:30 marks, GitHub delays or drops those)  -> ready for the morning post (7 AM weekdays, 10/11 AM weekends)
+    - cron: "47 4 * * *"    # 10:17 IST  -> ready for the evening post (5 PM weekdays, 6 PM Sat, 4 PM Sun)
   workflow_dispatch:
     inputs:
       book:
