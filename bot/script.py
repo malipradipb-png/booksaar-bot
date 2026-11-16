@@ -38,10 +38,17 @@ Do not start with greetings like "नमस्ते दोस्तों".""",
         prev = parts[-1][1][-400:]
         body = chat(STYLE, f"""Book: "{p['book']}" by {p['author']}. This is chapter {i} of {len(chapters)}: "{ch['title']}".
 Cover: {ch['points']}
-Write about 250 words of narration for this chapter. Keep it tight: one idea, one short Indian example, one action. Begin with a smooth one-line link from the previous part, which ended with:
+Write about 270 words of narration for this chapter. Begin with a smooth one-line link from the previous part, which ended with:
 "...{prev}"
-Include one concrete Indian example or story and one practical thing the listener can do today.""", max_tokens=1500)
+Inside the chapter, in this order: the idea in plain words; one concrete Indian example or small story (make it specific, with a name, a place and numbers);
+the most common mistake people make when they try this idea; one practical thing the listener can do today.
+Add something the book itself does not say: how this works (or does not work) in Indian conditions — family, jobs, money, culture. Speak it as the channel's own view ("हमारी समझ में", "भारत में अक्सर").""", max_tokens=1500)
         parts.append((ch["title"], clean(body)))
+    review = chat(STYLE, f"""Write a short honest review section (about 180 words) for the video on "{p['book']}" by {p['author']}, in the channel's own voice.
+Say clearly: what is genuinely strong in this book; one or two weak points (outdated examples, too much repetition, ideas that do not fit Indian life, or claims that are not well proven);
+who should read the full book and who can skip it; and how it compares with one other well-known book on the same topic.
+Be fair and specific. Do not invent facts about the author or the book; if unsure, speak in general terms.""", max_tokens=1500)
+    parts.append(("हमारी राय", clean(review)))
     outro = chat(STYLE, f"""Write the ending (about 150 words) for the video on "{p['book']}".
 Recap the 3 biggest lessons in story form, give one action for the next 7 days, ask a question for the comments,
 and ask them to subscribe to "बुक सार हिंदी" for a new book every day.""", max_tokens=1500)

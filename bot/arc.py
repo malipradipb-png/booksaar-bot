@@ -189,7 +189,7 @@ def fonts():
 
 
 # ---------------------------------------------------------------- video
-def frame(p, art, work):
+def frame(p, art, work, name="arc_bg.png"):
     bg = f"url('file://{os.path.abspath(art)}') center/cover" if art else "radial-gradient(120% 90% at 70% 40%,#3a2a18,#0b0d12 70%)"
     page = f"""<!doctype html><html><head><meta charset="utf-8"><style>{fonts()}
 html,body{{margin:0;width:{W}px;height:{H}px;overflow:hidden;background:#000}}
@@ -199,7 +199,7 @@ html,body{{margin:0;width:{W}px;height:{H}px;overflow:hidden;background:#000}}
 {BOOK_CSS}
 .bk{{--w:600px;--h:900px;--d:84px;left:70px;top:90px}}
 </style></head><body><div class="bg"></div><div class="sh"></div>{book(p, art)}{FIT}</body></html>"""
-    out = os.path.join(work, "arc_bg.png")
+    out = os.path.join(work, name)
     shot(page, out, W, H, work)
     return out
 
@@ -239,9 +239,63 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     return path
 
 
+def chapter_photos(p, titles, work):
+    """One different background photo per chapter, so the look changes as the video moves on."""
+    import scenes
+    qs = []
+    try:
+        from llm import chat
+        d = chat("You pick stock photos for a book-summary video. Reply with JSON only.",
+                 f'Book: "{p["book"]}" by {p["author"]}. Chapters (Hindi): ' + " | ".join(titles) +
+                 f'\nFor EACH chapter give a 3-5 word English Pexels search for one moody, cinematic photo that shows that chapter\'s idea '
+                 f'(people, places, nature; no text, no logos). All different. Return {{"q": [{len(titles)} strings in order]}}',
+                 as_json=True, max_tokens=600, temperature=0.7)
+        qs = [str(x) for x in (d.get("q") or [])]
+    except Exception as e:
+        print("chapter photo queries failed", e)
+    pics = scenes.Pics(work)
+    out = []
+    for i, t in enumerate(titles):
+        f = os.path.join(work, f"chap_{i:02d}.jpg")
+        q = qs[i] if i < len(qs) else ""
+        got = (q and (pics.pexels(q, f) or openverse(q, f))) or None
+        out.append(got)
+    return out
+
+
+def chapter_card(n, title, work, out, hi="#FFD21F"):
+    """Transparent overlay shown for a few seconds when a new chapter starts."""
+    from playwright.sync_api import sync_playwright
+    label = "हमारी राय" if title == "हमारी राय" else ("आखिरी बात" if title == "आखिरी बात" else f"अध्याय {n}")
+    sub = {"हमारी राय": "किताब की अच्छी और कमज़ोर बातें", "आखिरी बात": "सबसे बड़ी सीख और अगला कदम"}.get(title, title)
+    page = f"""<!doctype html><html><head><meta charset="utf-8"><style>{fonts()}
+html,body{{margin:0;width:{W}px;height:{H}px;background:transparent;font-family:Dev,Thumb,sans-serif}}
+.c{{position:absolute;left:760px;right:70px;top:300px;min-height:300px;box-sizing:border-box;padding:48px 56px;border-radius:28px;background:#0b0d14;
+ border-left:14px solid {hi};box-shadow:0 20px 60px rgba(0,0,0,.6)}}
+.l{{font-size:56px;color:{hi};font-weight:800;letter-spacing:1px}}
+.t{{font-size:84px;color:#fff;font-weight:800;line-height:1.18;margin-top:10px}}
+</style></head><body><div class="c"><div class="l">{html.escape(label)}</div>{f'<div class="t">{html.escape(sub)}</div>' if sub else ''}</div></body></html>"""
+    src = os.path.join(work, os.path.basename(out) + ".html")
+    open(src, "w", encoding="utf-8").write(page)
+    with sync_playwright() as pw:
+        b = pw.chromium.launch()
+        pg = b.new_page(viewport={"width": W, "height": H})
+        pg.goto("file://" + os.path.abspath(src))
+        pg.wait_for_timeout(600)
+        pg.screenshot(path=out, omit_background=True)
+        b.close()
+    return out
+
+
 def video(p, audio, words, work, out, total):
     art = theme_photo(p, work)
     bg = frame(p, art, work)
+    chaps = [c for c in (p.get("_chaps") or []) if c[0] < total - 5]
+    if len(chaps) >= 3:
+        try:
+            return video_chapters(p, audio, words, work, out, total, art, bg, chaps)
+        except Exception as e:
+            print("chapter video failed, using one background:", e)
     ass = captions(words, work, total)
     esc = ass.replace("\\", "/").replace(":", "\\:")
     fdir = FONTS.replace(":", "\\:")
@@ -254,6 +308,56 @@ def video(p, audio, words, work, out, total):
                     "-filter_complex", fc, "-map", "[v]", "-map", "1:a", "-t", f"{total:.2f}", "-r", str(FPS),
                     "-c:v", "libx264", "-preset", "veryfast", "-crf", "26", "-maxrate", "3000k", "-bufsize", "6000k",
                     "-pix_fmt", "yuv420p", "-c:a", "copy", "-movflags", "+faststart", out], check=True)
+    return out, art
+
+
+def video_chapters(p, audio, words, work, out, total, art, bg, chaps):
+    """Same layout as video(), but the background photo changes at every chapter and a chapter card
+    appears for 4 seconds at each chapter start."""
+    titles = [t for _, t in chaps]
+    photos = chapter_photos(p, titles, work)
+    seg = os.path.join(work, "chapbg")
+    os.makedirs(seg, exist_ok=True)
+    files = []
+    for i, (st, t) in enumerate(chaps):
+        en = chaps[i + 1][0] if i + 1 < len(chaps) else total
+        img = frame(p, photos[i], work, f"arc_bg_{i:02d}.png") if (i > 0 and photos[i]) else bg
+        f = os.path.join(seg, f"b{i:02d}.mp4")
+        subprocess.run(["ffmpeg", "-y", "-v", "error", "-loop", "1", "-framerate", str(FPS), "-i", img,
+                        "-frames:v", str(max(1, int(round(en * FPS)) - int(round(st * FPS)))), "-r", str(FPS),
+                        "-c:v", "libx264", "-preset", "ultrafast", "-crf", "18", "-pix_fmt", "yuv420p", f], check=True)
+        files.append(f)
+    lst = os.path.join(seg, "list.txt")
+    open(lst, "w").writelines(f"file '{os.path.abspath(x)}'\n" for x in files)
+    bgv = os.path.join(work, "arc_bg.mp4")
+    subprocess.run(["ffmpeg", "-y", "-v", "error", "-f", "concat", "-safe", "0", "-i", lst, "-c", "copy", bgv], check=True)
+
+    cards, n = [], 0
+    for st, t in chaps[1:]:
+        if t not in ("हमारी राय", "आखिरी बात"):
+            n += 1
+        cards.append((st + 0.3, chapter_card(n, t, work, os.path.join(work, f"card_{len(cards):02d}.png"))))
+
+    ass = captions(words, work, total)
+    esc = ass.replace("\\", "/").replace(":", "\\:")
+    fdir = FONTS.replace(":", "\\:")
+    inputs = ["-i", bgv, "-i", audio]
+    for _, c in cards:
+        inputs += ["-loop", "1", "-framerate", str(FPS), "-t", f"{total:.2f}", "-i", c]
+    fc = (f"[1:a]aformat=channel_layouts=mono,showfreqs=s=120x40:mode=bar:ascale=cbrt:fscale=log:win_size=256:averaging=2:"
+          f"colors=white,format=rgba,geq=r='255':g='255':b='255':a='if(lt(mod(X\\,2)\\,1)\\,alpha(X\\,Y)\\,0)',"
+          f"split[u][d];[d]vflip[dd];[u][dd]vstack,scale=1080:180:flags=neighbor[bars];"
+          f"[0:v][bars]overlay=x=790:y=850:format=auto,ass='{esc}':fontsdir='{fdir}'[v0]")
+    last = "v0"
+    for k, (st, _) in enumerate(cards):
+        fc += (f";[{k + 2}:v]format=rgba,fade=in:st={st:.2f}:d=0.4:alpha=1,fade=out:st={st + 3.6:.2f}:d=0.4:alpha=1[c{k}]"
+               f";[{last}][c{k}]overlay=0:0:enable='between(t,{st:.2f},{st + 4:.2f})'[v{k + 1}]")
+        last = f"v{k + 1}"
+    fc += f";[{last}]format=yuv420p[v]"
+    subprocess.run(["ffmpeg", "-y", "-v", "error", "-stats", *inputs, "-filter_complex", fc, "-map", "[v]", "-map", "1:a",
+                    "-t", f"{total:.2f}", "-r", str(FPS), "-c:v", "libx264", "-preset", "veryfast", "-crf", "26",
+                    "-maxrate", "3000k", "-bufsize", "6000k", "-pix_fmt", "yuv420p", "-c:a", "copy",
+                    "-movflags", "+faststart", out], check=True)
     return out, art
 
 
